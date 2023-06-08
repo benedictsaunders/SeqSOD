@@ -9,6 +9,8 @@ import argparse as ap
 from ase.build import sort as ase_sort
 from write_files import write_insod_lines, write_sgo
 from utils import *
+from itertools import repeat
+from pprint import pprint
 
 def get_input_params(atoms, target, dopant, supercell):
 
@@ -25,6 +27,7 @@ def get_input_params(atoms, target, dopant, supercell):
         position = " ".join(["{:.3f}".format(p) for p in position])
         scaled_positions_strs.append(position)
 
+    usymbols = " ".join(usymbols)
     supercell = " ".join(supercell)
     target_idx = usymbols.index(target)
 
@@ -34,8 +37,20 @@ def get_input_params(atoms, target, dopant, supercell):
 
 def number_target_sites(atoms, target):
     symbols = atoms.get_chemical_symbols()
-    print(symbols)
     return symbols.count(target)
+
+def symmops(atoms):
+    struct = AseAtomsAdaptor.get_structure(atoms)
+    sga = SpacegroupAnalyzer(struct)
+    sg_number = sga.get_space_group_number()
+    sg_operations = sga.get_space_group_operations()
+    return sg_number, sg_operations
+
+def sod_task(it, atoms, params):
+    cellpar, cnt_uqsym, uqsym, cnts, frac_pos, scell, tidx, rep = params
+    with cd(str(it)):
+        write_insod_lines(str(it), atoms, cellpar, cnt_uqsym, uqsym, frac_pos, supercell, tidx, it, rep)
+    return it
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description="A sequential approach to using SOD")
@@ -43,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input", required=True, help="Geometry input file, readable by ASE.")
     parser.add_argument("-d", "--dopants", required=True)
     parser.add_argument("-t", "--target", required=True)
-    parser.add_argument("-r", "--supercell", default=["1", "1", "1"], nargs=3, help="Create a supercell of the input in X Y Z.")
+    parser.add_argument("-r", "--supercell", default=("1", "1", "1"), nargs=3, help="Create a supercell of the input in X Y Z.")
     parser.add_argument("-c", "--convert", action="store_true", help="Convert all metal/non chalcogen sites to a target.")
     parser.add_argument("--ignoredopant", action="store_true", help="Ignore the dopant if --convert is used.")
 
@@ -59,7 +74,6 @@ if to_target:
         to_ignore.append(dopants)
     struct = AseAtomsAdaptor.get_structure(atoms)
     for element in list(species):
-        print(element)
         if element not in to_ignore:
             struct.replace_species(
                 dict({Element(element):Element(target)})
@@ -68,10 +82,13 @@ if to_target:
     atoms = AseAtomsAdaptor.get_atoms(struct)
 
 atoms = ase_sort(atoms)
-cellpar, cnt_uqsym, uqsym, cnts, frac_pos, scell, tidx, rep = get_input_params(atoms, target, dopants, supercell)
+params = get_input_params(atoms, target, dopants, supercell)
 its = number_target_sites(atoms, target)
 
-print(list(range(its)))
+write_sgo(*symmops(atoms))
+
+with concurrent.futures.ProcessPoolExecutor(max_workers=its) as executor:
+    r = executor.map(sod_task, range(1, its), repeat(atoms), repeat(params))
 
 
 
