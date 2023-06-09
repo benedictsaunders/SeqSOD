@@ -80,6 +80,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     atoms = ase_read(args.input)
+    name = args.input
     target, dopants, supercell, to_target, ignore_dopant = args.target, args.dopants, args.supercell, args.convert, args.ignoredopant
 
 if to_target:
@@ -98,9 +99,10 @@ if to_target:
 
 atoms = ase_sort(atoms)
 params = get_input_params(atoms, target, dopants, supercell)
-its = number_target_sites(atoms, target)
+mult = [int(i) for i in supercell]
+its = number_target_sites(atoms, target) * mult[0] * mult[1] * mult[2]
 
-write_sgo(*symmops(atoms))
+write_sgo(name, *symmops(atoms))
 
 with concurrent.futures.ProcessPoolExecutor(max_workers=its) as executor:
     r = executor.map(sod_task, range(1, its), repeat(atoms), repeat(params))

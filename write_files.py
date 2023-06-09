@@ -61,16 +61,16 @@ def write_insod_lines(title, atoms, cell_params, nspecies, symbols, len_symbols,
             f.write("\n")
     return 0
 
-def write_sgo(number, ops):
+def write_sgo(name, number, ops):
     # Check for existing SGO?
     with open("SGO", "w") as f:
-        f.write(f"Space group {number}\n")
+        f.write(f"Space group {number} for {name}\n")
         for idx, op in enumerate(ops, 1):
             f.write(f"{idx}\n")
             rotm = op.rotation_matrix
             tranv = op.translation_vector
             for jdx, elem in enumerate(rotm):
-                f.write(f"  {elem[0]}  {elem[1]}  {elem[0]}   {tranv[jdx]}\n")
+                f.write(f"  {elem[0]}  {elem[1]}  {elem[2]}   {tranv[jdx]}\n")
         f.write("0\n")
 
         
