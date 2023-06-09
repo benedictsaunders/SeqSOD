@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 import os
-import pathlib
 
 @contextmanager
 def cd(path):

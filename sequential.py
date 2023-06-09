@@ -2,15 +2,15 @@ from ase.io import read as ase_read
 from pymatgen.core.periodic_table import Element
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from tqdm import tqdm
-import numpy as np
 import concurrent.futures
 import argparse as ap
 from ase.build import sort as ase_sort
 from write_files import write_insod_lines, write_sgo
 from utils import *
 from itertools import repeat
-from pprint import pprint
+import subprocess as sp
+import shutil
+from tqdm import tqdm
 
 def get_input_params(atoms, target, dopant, supercell):
 
@@ -18,22 +18,26 @@ def get_input_params(atoms, target, dopant, supercell):
     # Not using set here because we want to preserve the order
     usymbols = []
     counts = []
-    for s in list(atoms.symbols):
+    symbols = list(atoms.symbols)
+    for s in symbols:
         if s not in usymbols:
             usymbols.append(s)
-            counts.append(usymbols.count(s))
+    for us in usymbols:
+        counts.append(str(symbols.count(us)))
     scaled_positions_strs = []
     for position in atoms.get_scaled_positions():
         position = " ".join(["{:.3f}".format(p) for p in position])
         scaled_positions_strs.append(position)
 
+    cnt_usymbols = str(len(usymbols))
+    counts = " ".join(counts)
     usymbols = " ".join(usymbols)
     supercell = " ".join(supercell)
-    target_idx = usymbols.index(target)
+    target_idx = usymbols.index(target) + 1 # Fortran starts at 1 and needs to get in the bin
 
     replacement = f"{dopant} {target}"
 
-    return param_string, len(usymbols), usymbols, counts, scaled_positions_strs, supercell, target_idx, replacement
+    return param_string, cnt_usymbols, usymbols, counts, scaled_positions_strs, supercell, target_idx, replacement
 
 def number_target_sites(atoms, target):
     symbols = atoms.get_chemical_symbols()
@@ -47,9 +51,20 @@ def symmops(atoms):
     return sg_number, sg_operations
 
 def sod_task(it, atoms, params):
-    cellpar, cnt_uqsym, uqsym, cnts, frac_pos, scell, tidx, rep = params
+    """
+    THIS IS THE MAIN EVENT!
+    """
+    cellpar, cnt_uqsym, uqsym, counts, frac_pos, scell, tidx, rep = params
     with cd(str(it)):
-        write_insod_lines(str(it), atoms, cellpar, cnt_uqsym, uqsym, frac_pos, supercell, tidx, it, rep)
+        write_insod_lines(f"Pmt - {it   }", atoms, cellpar, counts, uqsym, cnt_uqsym, frac_pos, scell, tidx, it, rep)
+        shutil.copy2("../SGO", ".")
+
+        print(f" > Running SOD for permutation {it}.")
+        sod_log = open("SODLOG", "w")
+        sp.call(["sod_comb.sh"], stdout=sod_log, stderr=sod_log)
+        print(f" > Finished SOD for permutation {it}.")
+
+        
     return it
 
 if __name__ == "__main__":
