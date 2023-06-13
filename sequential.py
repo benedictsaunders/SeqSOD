@@ -56,7 +56,7 @@ def sod_task(it, atoms, params):
     """
     cellpar, cnt_uqsym, uqsym, counts, frac_pos, scell, tidx, rep = params
     with cd(str(it)):
-        write_insod_lines(f"Pmt - {it   }", atoms, cellpar, counts, uqsym, cnt_uqsym, frac_pos, scell, tidx, it, rep)
+        write_insod_lines(f"Permutation - {it   }", atoms, cellpar, counts, uqsym, cnt_uqsym, frac_pos, scell, tidx, it, rep)
         shutil.copy2("../SGO", ".")
 
         print(f" > Running SOD for permutation {it}.")
@@ -64,8 +64,17 @@ def sod_task(it, atoms, params):
         sp.call(["sod_comb.sh"], stdout=sod_log, stderr=sod_log)
         print(f" > Finished SOD for permutation {it}.")
 
-        
+      
     return it
+
+def collect_structs(sequence, ext = "vasp"):
+    os.mkdir("ALL_STRUCTS")
+    for member in sequence:
+        with cd(str(member) + "/CALCS"):
+            prepend_filenames(f"*.{ext}")
+        
+        p = sp.Popen(["cp", f"{member}/CALCS/*.{ext}", "ALL_STRUCTS"])
+        p.wait()
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description="A sequential approach to using SOD")
@@ -75,7 +84,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--target", required=True)
     parser.add_argument("-r", "--supercell", default=("1", "1", "1"), nargs=3, help="Create a supercell of the input in X Y Z.")
     parser.add_argument("-c", "--convert", action="store_true", help="Convert all metal/non chalcogen sites to a target.")
-    parser.add_argument("--ignoredopant", action="store_true", help="Ignore the dopant if --convert is used.")
+    parser.add_argument("--ignoredopant", action="store_true", help="Ignore any existing dopants if --convert is used.")
 
     args = parser.parse_args()
 
@@ -106,7 +115,8 @@ write_sgo(name, *symmops(atoms))
 
 with concurrent.futures.ProcessPoolExecutor(max_workers=its) as executor:
     r = executor.map(sod_task, range(1, its), repeat(atoms), repeat(params))
-
+sequence = list(r)
+collect_structs(sequence=sequence)
 
 
 
