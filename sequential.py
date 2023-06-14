@@ -4,14 +4,12 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 import concurrent.futures
 import argparse as ap
-from pyfiglet import Figlet
 from ase.build import make_supercell, sort as ase_sort
 from write_files import write_insod_lines, write_sgo
 from utils import *
 from itertools import repeat
 import subprocess as sp
 import shutil
-from tqdm import tqdm
 
 IGNORE_SPECIES = ["O", "S", "Cl", "F", "H", "C", "Si", "Br", "I"]
 
