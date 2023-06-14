@@ -64,17 +64,14 @@ def sod_task(it, atoms, params):
         sp.call(["sod_comb.sh"], stdout=sod_log, stderr=sod_log)
         print(f" > Finished SOD for permutation {it}.")
 
-      
     return it
 
 def collect_structs(sequence, ext = "vasp"):
     os.mkdir("ALL_STRUCTS")
     for member in sequence:
         with cd(str(member) + "/CALCS"):
-            prepend_filenames(f"*.{ext}")
-        
-        p = sp.Popen(["cp", f"{member}/CALCS/*.{ext}", "ALL_STRUCTS"])
-        p.wait()
+            move_and_rename(f"*.{ext}", prefix = str(member) + "_")
+    
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description="A sequential approach to using SOD")
@@ -84,13 +81,16 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--target", required=True)
     parser.add_argument("-r", "--supercell", default=("1", "1", "1"), nargs=3, help="Create a supercell of the input in X Y Z.")
     parser.add_argument("-c", "--convert", action="store_true", help="Convert all metal/non chalcogen sites to a target.")
+    parser.add_argument("-f", "--force", action="store_true", help="Force overwrite of directories, overwriting previous runs.")
     parser.add_argument("--ignoredopant", action="store_true", help="Ignore any existing dopants if --convert is used.")
 
     args = parser.parse_args()
 
     atoms = ase_read(args.input)
     name = args.input
-    target, dopants, supercell, to_target, ignore_dopant = args.target, args.dopants, args.supercell, args.convert, args.ignoredopant
+    target, dopants, supercell, to_target, ignore_dopant, force_ow = args.target, args.dopants, args.supercell, args.convert, args.ignoredopant, args.force
+
+handle_overwrite(force = force_ow)
 
 if to_target:
     species = set(atoms.get_chemical_symbols())
@@ -113,8 +113,9 @@ its = number_target_sites(atoms, target) * mult[0] * mult[1] * mult[2]
 
 write_sgo(name, *symmops(atoms))
 
+dirs = [f"sqsd_{i}" for i in range(1, its)]
 with concurrent.futures.ProcessPoolExecutor(max_workers=its) as executor:
-    r = executor.map(sod_task, range(1, its), repeat(atoms), repeat(params))
+    r = executor.map(sod_task, dirs, repeat(atoms), repeat(params))
 sequence = list(r)
 collect_structs(sequence=sequence)
 

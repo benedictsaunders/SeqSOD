@@ -8,6 +8,7 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pprint import pprint
 
 def write_insod_lines(title, atoms, cell_params, nspecies, symbols, len_symbols, coords, supercell, target_idx, subs, subtype, filer = ("11 0"), ishell = ("0 1"), newshell = ("0 0") ):
+    subs = subs.split("_")[-1]
     atoms = sort(atoms)
     lines = []
     lines.append("#Title")
