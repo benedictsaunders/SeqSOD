@@ -63,9 +63,10 @@ def sod_task(it, atoms, params):
 
         print(f" > Running SOD for permutation {idx}.")
         sod_log = open("SODLOG", "w")
-        sp.call(["sod_comb.sh"], stdout=sod_log, stderr=sod_log)
+        p = sp.Popen(["sod_comb.sh"], stdout=sod_log, stderr=sod_log)
+        p.wait()
+        check_sod_output()
         print(f" > Finished SOD for permutation {idx}.")
-
     return it
 
 

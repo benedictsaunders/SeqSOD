@@ -16,7 +16,6 @@ if pyfiglet_loader is not None:
 #
 ####
 
-
 @contextmanager
 def cd(path):
     prev = os.getcwd()
@@ -82,3 +81,8 @@ def cli_header():
         print(">>> ====== <<<\n")
     print("  A sequential approach to using SOD")
 
+def check_sod_output():
+    with open("SODLOG", "r") as f:
+        firstline = f.readlines()[0].strip()
+    if "(required by combsod)" in firstline:
+        print(" > combsod failed due to missing modules/libraries. Check SODLOG file.")
